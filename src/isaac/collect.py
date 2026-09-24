@@ -21,6 +21,8 @@ from task import (PickAndPlaceTask, SortingTask, Waypoint, _OBJ_PARAMS,
                   WAYPOINT_NAMES, PHASE_INSTRUCTIONS,
                   SORT_PLATFORM_CENTRES, SORT_PLATFORM_DIMS)
 
+from camera_checks import require_camera_prim
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Camera capture
@@ -224,21 +226,11 @@ class DataCollector:
         # cached <scene>_sim.usd; do the EXACT same here so collection and eval
         # share one identical, graph-free scene and the cube stays a stable magenta.
         from pathlib import Path as _Path
-        from pxr import Usd as _Usd
+        from scene_prep import build_clean_scene
+        
         _raw_scene   = _Path(self.scene_usd)
-        _clean_scene = _raw_scene.parent / (_raw_scene.stem + "_sim.usd")
-        if (not _clean_scene.exists() or
-                _raw_scene.stat().st_mtime > _clean_scene.stat().st_mtime):
-            _s = _Usd.Stage.Open(str(_raw_scene))
-            _gpaths = [p.GetPath() for p in _s.Traverse()
-                       if p.GetTypeName() in ("OmniGraph", "ComputeGraph")]
-            for _gp in _gpaths:
-                _s.RemovePrim(_gp)
-            _s.GetRootLayer().Export(str(_clean_scene))
-            print(f"[COLLECT] Built {_clean_scene.name}: removed {len(_gpaths)} "
-                  f"graph prim(s) (was colouring the cube)", flush=True)
-        else:
-            print(f"[COLLECT] Using cached graph-free scene {_clean_scene.name}", flush=True)
+        _clean_scene = build_clean_scene(_raw_scene)
+
         omni.usd.get_context().open_stage(str(_clean_scene))
         stage = omni.usd.get_context().get_stage()
 
@@ -253,6 +245,7 @@ class DataCollector:
         world = World(physics_dt=1/60, rendering_dt=1/60, stage_units_in_meters=1.0)
         robot = world.scene.add(Robot(prim_path=self.ROBOT_PRIM, name="robot"))
 
+        require_camera_prim(self.WRIST_CAM_PRIM)
         wrist_cam = Camera(
             prim_path  = self.WRIST_CAM_PRIM,
             resolution = (self.image_size, self.image_size),

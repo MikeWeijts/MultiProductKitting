@@ -15,7 +15,6 @@ import os
 import time
 import numpy as np
 from scipy.spatial.transform import Rotation
-from pxr import Usd
 import omni.usd
 import rclpy
 from rclpy.node import Node
@@ -28,6 +27,8 @@ from isaacsim.core.prims import SingleRigidPrim
 from isaacsim.core.utils.extensions import enable_extension
 from gripper import (SurfaceGripperController, _GRIPPER_PRIM_PATH, _CUP_TIPS,
                      _MAX_GRIP_DISTANCE)
+from camera_checks import require_camera_prim
+from scene_prep import build_clean_scene
 from isaacsim.core.utils.stage import is_stage_loading
 from isaacsim.core.utils.types import ArticulationAction
 from isaacsim.robot_motion.motion_generation import LulaKinematicsSolver
@@ -70,20 +71,9 @@ CUBE_MASS           = 0.20   # kg
 # RemovePrim() is required rather than SetActive(False): the Kit OmniGraph
 # runtime keeps executing disabled nodes, which crashes omni.graph.image.core
 # while Fabric is still syncing robot mesh prims.
-_RAW_SCENE   = Path(__file__).parent.parent.parent / "scenes" / "usd" / "sim2.usd"
-_CLEAN_SCENE = _RAW_SCENE.parent / (_RAW_SCENE.stem + "_sim.usd")
 
-if (not _CLEAN_SCENE.exists() or
-        _RAW_SCENE.stat().st_mtime > _CLEAN_SCENE.stat().st_mtime):
-    _stage = Usd.Stage.Open(str(_RAW_SCENE))
-    _paths = [p.GetPath() for p in _stage.Traverse()
-              if p.GetTypeName() in ("OmniGraph", "ComputeGraph")]
-    for _path in _paths:
-        _stage.RemovePrim(_path)
-    _stage.GetRootLayer().Export(str(_CLEAN_SCENE))
-    print(f"[SCENE] Built {_CLEAN_SCENE.name}: removed {len(_paths)} OmniGraph prim(s)")
-else:
-    print(f"[SCENE] Using cached {_CLEAN_SCENE.name}")
+_RAW_SCENE   = Path(__file__).parent.parent.parent / "scenes" / "usd" / "sim2.usd"
+_CLEAN_SCENE = build_clean_scene(_RAW_SCENE)
 
 # Poll without update() so omni.graph.image.core is never triggered while
 # Fabric is still syncing prims from USD sublayers.
@@ -225,9 +215,7 @@ for _ in range(60):
 # -----------------------------------------------------------------------------
 # Camera
 # -----------------------------------------------------------------------------
-if not omni.usd.get_context().get_stage().GetPrimAtPath(WRIST_CAM_PRIM).IsValid():
-    raise RuntimeError(f"Camera prim not found: {WRIST_CAM_PRIM}")
-
+require_camera_prim(WRIST_CAM_PRIM)
 camera = Camera(prim_path=WRIST_CAM_PRIM, resolution=(128, 128))
 camera.initialize()
 for _ in range(30):

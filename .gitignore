@@ -27,15 +27,15 @@ _build/
 *.bak
 
 
-# Scenes — ignore everything except files actively used by simulation.py
-scenes/**
-!scenes/usd/
-!scenes/usd/doosan_BIC.usd
-scenes/usd/doosan_BIC_sim.usd
-!scenes/h2017/
-!scenes/h2017/urdf/
-!scenes/h2017/urdf/h2017.urdf
-!scenes/h2017/urdf/h2017_lula.yaml
+# Scenes — track everything the sim loads; skip CAD sources and generated caches
+scenes/**/*.STEP
+scenes/**/*.step
+scenes/**/*.stp
+scenes/**/*.usdz
+scenes/structures/Transporter.obj
+scenes/structures/Transporter.mtl
+scenes/structures/Transporter_converted.usd
+scenes/usd/*_sim.usd
 
 # VLA demos / training data / wandb
 data/
