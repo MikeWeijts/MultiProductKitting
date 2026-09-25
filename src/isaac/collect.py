@@ -14,6 +14,10 @@
 import argparse
 from pathlib import Path
 
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))   # repo root, for config.py
+import config
+
 import numpy as np
 from scipy.spatial.transform import Rotation
 
@@ -125,9 +129,9 @@ class EpisodeBuffer:
 class DataCollector:
     """Collects scripted pick-and-place episodes in Isaac Sim."""
 
-    ROBOT_PRIM     = "/World/h2017"
-    EE_FRAME       = "link_6"
-    WRIST_CAM_PRIM = "/World/h2017/link_6/MechEye/MechEye/Camera"
+    ROBOT_PRIM     = config.ROBOT_PRIM
+    EE_FRAME       = config.EE_FRAME
+    WRIST_CAM_PRIM = config.WRIST_CAM_PRIM
 
     # NOTE: CUBE_PRIM is a DynamicCuboid created at runtime, not the
     # /World/Pickables/Cube that exists in sim2.usd.  sim_node.py resets
@@ -226,7 +230,7 @@ class DataCollector:
         # cached <scene>_sim.usd; do the EXACT same here so collection and eval
         # share one identical, graph-free scene and the cube stays a stable magenta.
         from pathlib import Path as _Path
-        from scene_prep import build_clean_scene
+        from scene_prep import build_clean_scene, add_object
         
         _raw_scene   = _Path(self.scene_usd)
         _clean_scene = build_clean_scene(_raw_scene)
@@ -256,22 +260,23 @@ class DataCollector:
         cube_h   = _OBJ_PARAMS['cube']['height']
         cyl_h    = _OBJ_PARAMS['cylinder']['height']
 
-        cube = world.scene.add(DynamicCuboid(
-            prim_path = self.CUBE_PRIM,
-            name      = "pick_cube",
-            position  = self.PARK_POSITIONS['cube'].copy(),
-            scale     = np.array([cube_h] * 3),
-            mass      = 0.20,
-            color     = np.array([1.0, 0.0, 1.0]),   # magenta — stable, unique cube cue (MUST match sim_node.py)
-        ))
-        cylinder = world.scene.add(DynamicCylinder(
-            prim_path = self.CYLINDER_PRIM,
-            name      = "pick_cylinder",
-            position  = self.PARK_POSITIONS['cylinder'].copy(),
-            radius    = 0.05,
-            height    = cyl_h,
-            mass      = 0.20,
-        ))
+        cube = add_object(
+            world, 
+            "cube", 
+            self.PARK_POSITIONS['cube'], 
+            "pick_cube", 
+            0.20, 
+            scale=[cube_h] * 3, 
+            color=[1.0, 0.0, 1.0]) # magenta — stable, unique cube cue (MUST match collect.py)
+
+        cylinder = add_object(
+            world, 
+            "cylinder", 
+            self.PARK_POSITIONS['cylinder'], 
+            "pick_cylinder", 
+            0.20, 
+            radius=0.05, 
+            height=cyl_h,)
 
         # Pyramid is NOT pre-allocated; rebuilt fresh each episode so its L×W×H
         # can vary without requiring a full world.reset().
@@ -596,14 +601,17 @@ class DataCollector:
             # → place (grasped, carrying) at the first close → home after release.
             # The gripper transitions are exactly what the live loop can observe,
             # so training phases and inference phase-switches line up.
-            _phase    = "pick"
-            _grasped  = False
+            _phase      = "pick"
+            _next_phase = None
+            _grasped    = False
             for wp_idx, wp in enumerate(waypoints, 1):
+                if _next_phase:
+                    _phase, _next_phase = _next_phase, None
                 if wp.gripper > 0.5 and not _grasped:
                     _grasped = True
-                    _phase   = "place"
+                    _next_phase   = "place"
                 elif wp.gripper < 0.5 and _grasped and _phase == "place":
-                    _phase   = "home"
+                    _next_phase   = "home"
                 _gripper_close_this_wp = False
                 if wp.gripper != _prev_gripper:
                     if wp.gripper > 0.5:

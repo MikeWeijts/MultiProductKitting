@@ -1,4 +1,6 @@
+# -----------------------
 # Multi-product kitting
+# -----------------------
 
 Kitting playsets onto pallets with a Doosan H2017 at the Brainport Industries
 Campus. Because new playsets are released regularly, a conventional setup has
@@ -16,6 +18,35 @@ product set.
 
 Work in progress. See [docs/upstream-README.md](docs/upstream-README.md) for
 the inherited setup and pipeline documentation.
+
+## Running
+
+Everything starts through `run.sh`. Run `./run.sh help` for all modes and flags.
+
+```bash
+# Start only the sim and check that the scene loads
+./run.sh debug sim
+
+# Collect demos, convert them to TFDS and finetune Octo
+./run.sh pipeline --output-dir data/exp_01 --preset phased-cube
+
+# Run the trained policy in the sim
+./run.sh sim --instruction "pick up the cube and place it on the conveyor"
+
+# Measure the closed-loop success rate over 20 attempts
+./run.sh debug success --attempts 20
+
+# Run the policy on the real robot
+./run.sh real --instruction "pick up the cube and place it on the conveyor"
+```
+
+`sim` and `real` use the newest finetuned checkpoint automatically, or the
+pretrained Octo model if there is none. Logs are written to `debug/logs/run/`.
+
+For the full flag reference, the DAgger workflow, finetuning settings and the
+TCP message formats, see [docs/upstream-README.md](docs/upstream-README.md).
+It's Installation section is outdated for this repo, so use the Setup section
+below instead.
 
 ## Setup
 

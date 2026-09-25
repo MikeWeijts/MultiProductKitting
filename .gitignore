@@ -36,6 +36,7 @@ scenes/structures/Transporter.obj
 scenes/structures/Transporter.mtl
 scenes/structures/Transporter_converted.usd
 scenes/usd/*_sim.usd
+scenes/h2017/urdf/h2017_lula_place.yaml
 
 # VLA demos / training data / wandb
 data/

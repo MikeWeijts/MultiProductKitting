@@ -1,9 +1,13 @@
 # scene-prep.py - Loads the scene. Previously this was one seperately in sim_node.py and collect.py which created duplicate code and if you want to change one of them you have to change both or your training or video generation uses different data.
 # To prevent this I made a seperate file scene_prep to load in the scenes.
-
 from pathlib import Path
 from pxr import Usd, Sdf
+import numpy as np
+from isaacsim.core.api.objects import (DynamicCuboid, DynamicCylinder, DynamicSphere, DynamicCone)
 
+# --------------------------------------------------------
+# Build Scene
+# --------------------------------------------------------
 def build_clean_scene(raw_scene):
     _RAW_SCENE = Path(raw_scene)
     _CLEAN_SCENE = _RAW_SCENE.parent / (_RAW_SCENE.stem + "_sim.usd")
@@ -28,3 +32,41 @@ def build_clean_scene(raw_scene):
         print(f"[SCENE] Using cached {_CLEAN_SCENE.name}")
 
     return _CLEAN_SCENE
+
+# --------------------------------------------------------
+# Placed Objects
+# --------------------------------------------------------
+SHAPE_TYPES = {
+    "cube"      : DynamicCuboid,
+    "cylinder"  : DynamicCylinder,
+    "sphere"    : DynamicSphere,
+    "cone"      : DynamicCone,
+}
+
+def add_object(world, shape, position, name, mass=0.20, scale=None, radius=None, height=None, color=None):
+    """Add a pick object to the scene. 
+    
+    shape:      Add shape based on SHAPE_TYPES
+    position:   (x, y, z) in meters
+    name:       unique name, also used for prim path /World/<name>
+    Only give the parameters that fit the shape. Anything left as "None" is not passed to Isaac, so Isaac uses its own default.
+    """
+    options = {"scale": scale, "radius": radius, "height": height, "color": color}
+
+    # Keep only the options that were given, and turn list into arrays for Isaac
+    params = {}
+    for key, value in options.items():
+        if value is None:
+            continue
+        if isinstance(value, (list, tuple)):
+            params[key] = np.array(value)
+        else:
+            params[key] = value
+
+    return world.scene.add(SHAPE_TYPES[shape](
+        prim_path = f"/World/{name}",
+        name      = name,
+        position  = np.array(position),
+        mass      = mass,
+        **params,
+    ))

@@ -7,6 +7,11 @@
 from pathlib import Path
 from isaacsim import SimulationApp
 
+import sys
+# repo root, for config.py
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from config import ROBOT_PRIM, WRIST_CAM_PRIM, EE_FRAME
+
 simulation_app = SimulationApp({"headless": False})
 
 # All imports must come after SimulationApp — Kit initialises the Python
@@ -28,7 +33,7 @@ from isaacsim.core.utils.extensions import enable_extension
 from gripper import (SurfaceGripperController, _GRIPPER_PRIM_PATH, _CUP_TIPS,
                      _MAX_GRIP_DISTANCE)
 from camera_checks import require_camera_prim
-from scene_prep import build_clean_scene
+from scene_prep import build_clean_scene, add_object
 from isaacsim.core.utils.stage import is_stage_loading
 from isaacsim.core.utils.types import ArticulationAction
 from isaacsim.robot_motion.motion_generation import LulaKinematicsSolver
@@ -37,9 +42,6 @@ from isaacsim.sensors.camera import Camera
 # -----------------------------------------------------------------------------
 # Configuration
 # -----------------------------------------------------------------------------
-ROBOT_PRIM     = "/World/h2017"
-EE_FRAME       = "link_6"
-WRIST_CAM_PRIM = "/World/h2017/link_6/MechEye/MechEye/Camera"
 URDF_PATH      = Path(__file__).parent.parent.parent / "scenes" / "h2017" / "urdf" / "h2017.urdf"
 LULA_DESC      = Path(__file__).parent.parent.parent / "scenes" / "h2017" / "urdf" / "h2017_lula.yaml"
 JOINT_NAMES    = ['joint_1', 'joint_2', 'joint_3', 'joint_4', 'joint_5', 'joint_6']
@@ -133,14 +135,14 @@ robot = world.scene.add(Robot(prim_path=ROBOT_PRIM, name="robot"))
 
 # Create the same DynamicCuboid collect.py trains on — must be added before
 # world.reset() so PhysX registers it in the same pass as the robot articulation.
-_pickup_cube = world.scene.add(DynamicCuboid(
-    prim_path = PICKUP_PRIM_PATH,
-    name      = "pickup_cube",
-    position  = np.array(PICKUP_POSITION),
-    scale     = np.array([CUBE_HEIGHT] * 3),
-    mass      = CUBE_MASS,
-    color     = np.array([1.0, 0.0, 1.0]),   # magenta — stable, unique cube cue (MUST match collect.py)
-))
+_pickup_cube = add_object(
+    world, 
+    "cube", 
+    PICKUP_POSITION, 
+    "pick_cube", 
+    CUBE_MASS, 
+    scale=[CUBE_HEIGHT] * 3, 
+    color=[1.0, 0.0, 1.0]) # magenta — stable, unique cube cue (MUST match collect.py)
 
 # Sorting eval: recreate the SortingTask target platforms so the eval scene
 # matches the training scene (collect.py made these via _create_sort_platforms;

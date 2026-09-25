@@ -1,3 +1,6 @@
+> **Note:** the Installation section below is outdated for MultiProductKitting.
+> See the Setup section in the main README.
+
 # ootf_ros2
 
 A ROS2 pipeline for training and deploying a Doosan H2017 robot arm using the
